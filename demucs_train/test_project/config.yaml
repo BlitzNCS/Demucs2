@@ -1,0 +1,20 @@
+train_path: "C:\\demucs\\demucs_train\\test_project\\dataset\\training"
+valid_path: "C:\\demucs\\demucs_train\\test_project\\dataset\\training"
+
+model_name: "rmk_tiny_test"
+
+
+audio_channels: 1
+
+sources:
+  - "kick"
+  - "snare"
+  - "toms"
+  - "cymbals"
+
+epochs: 100
+batch_size: 16
+learning_rate: 0.0003
+
+output_path: "/path/to/save/output"
+checkpoints_path: "/path/to/save/checkpoints"
