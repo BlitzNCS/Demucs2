@@ -9,8 +9,9 @@ dset:
   channels: 2
   segment: 11
   sources: ['kick','snare','toms','cymbals']
-  epochs: 120
-  batch_size: 64
+
+epochs: 120
+batch_size: 64
 
 dora:
   dir: /outputs
