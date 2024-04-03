@@ -111,10 +111,22 @@ def get_datasets(args):
     if args.dset.backend:
         torchaudio.set_audio_backend(args.dset.backend)
     if args.dset.use_musdb:
+        print("USING MUSDB SET")
         train_set, valid_set = get_musdb_wav_datasets(args.dset)
     else:
+        print("NOT USING MUSDB SET")
         train_set, valid_set = [], []
     if args.dset.wav:
+        print(f"DSET LOCATION IS {args.dset.wav} ")
+
+        for root, dirs, files in os.walk(args.dset.wav):
+            level = root.replace(args.dset.wav, '').count(os.sep)
+            indent = ' ' * 4 * level
+            print(f"{indent}{os.path.basename(root)}/")
+            subindent = ' ' * 4 * (level + 1)
+            for file in files:
+                print(f"{subindent}{file}")
+
         extra_train_set, extra_valid_set = get_wav_datasets(args.dset)
         if len(args.dset.sources) <= 4:
             train_set = ConcatDataset([train_set, extra_train_set])
