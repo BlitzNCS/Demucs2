@@ -15,7 +15,7 @@ dset:
   wav2:  # second custom wav dataset
   segment: 11
   shift: 1
-  train_valid: false
+  train_valid: true
   full_cv: true
   samplerate: 44100
   channels: 2
