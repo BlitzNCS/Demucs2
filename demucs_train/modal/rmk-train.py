@@ -17,6 +17,7 @@ image_rmk_train = (
     Image.debian_slim()
     .apt_install("git", "soundstretch", "ffmpeg")
     .pip_install("pygit2==1.12.2")
+    .env({"TORCHAUDIO_USE_BACKEND_DISPATCHER": "1"})
     .run_commands(
         "git clone --branch 5 https://github.com/BlitzNCS/Demucs2.git",
         #"git clone https://github.com/BlitzNCS/Demucs2.git",
@@ -27,33 +28,61 @@ image_rmk_train = (
 )
 
 # Define the Modal Stub
-stub = Stub("rmk-tiny-test-train", image=image_rmk_train)
+stub = Stub("rmk-train", image=image_rmk_train)
 
 output_vol = modal.Volume.from_name("remuse-kit-train-test")
 
-dset_vol = modal.Volume.from_name("rmk-tiny-test-dset")
+dset_vol = modal.Volume.from_name("rmk-train-dset-v1-170424-1")
+
+meta_vol = modal.Volume.from_name("rmk-train-metadata-test")
 
 
 
-@stub.function(mounts=[modal.Mount.from_local_dir("C:\\Demucs2\\conf", remote_path="/copy_path/conf"), modal.Mount.from_local_dir("C:\\Demucs2\\demucs", remote_path="/copy_path/demucs")], gpu = "any", volumes={"/outputs": output_vol, "/rmk-tiny-test-dset": dset_vol})
+@stub.function(timeout=86400, mounts=[modal.Mount.from_local_dir("C:\\Demucs2\\conf", remote_path="/copy_path/conf"), modal.Mount.from_local_dir("C:\\Demucs2\\demucs", remote_path="/copy_path/demucs")], gpu = modal.gpu.A10G(count=2), volumes={"/outputs": output_vol, "/dset_vol": dset_vol, "/metadata": meta_vol})
 def commence():
 
-    copy_files()
+  copy_files()
 
-    import subprocess as sp
-    
-    #cmd = ["python3", "-m", "dora", "run", "dset=rmk-tiny-test"]
+  import subprocess as sp
+
+  meta_vol.reload()
+
+  os.environ["TORCHAUDIO_USE_BACKEND_DISPATCHER"] = "1"
+
+  
+  os.chdir("/Demucs2")
+  cmd = ["dora", "run", "-d", "dset='rmk-train-dset-v1-170424-1'"]
+
+  p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, text=False)
+  copy_process_streams(p)
+  p.wait()
+  if p.returncode != 0:
+      print("Command failed, something went wrong.")
 
 
 
-    os.chdir("/Demucs2")
-    cmd = ["dora", "run", "-d", "dset='rmk_tiny_test'"]
+  cmd = ["python3", "-m", "tools.export", "9bd070ae"]
 
-    p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, text=False)
-    copy_process_streams(p)
-    p.wait()
-    if p.returncode != 0:
-        print("Command failed, something went wrong.")
+  p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, text=False)
+  copy_process_streams(p)
+  p.wait()
+  if p.returncode != 0:
+      print("Command failed, something went wrong.")
+
+
+  checkpoint_path = "./release_models/9bd070ae.th"
+
+  checkpoint_dest = "/outputs/rmk-out-test"
+
+
+  os.makedirs(checkpoint_dest, exist_ok=True)
+  shutil.copy2(checkpoint_path, checkpoint_dest)
+
+  
+  meta_vol.commit()
+  output_vol.commit()
+
+
 
 
 
@@ -62,25 +91,43 @@ def copy_files():
     copy_path = "/copy_path"
     demucs2_path = "/Demucs2"
 
+
+    demucs_code_path = os.path.join(copy_path, "demucs/")
+    demucs_code_dest  = os.path.join(demucs2_path, "demucs/")
+
     # Set the file paths for the files to be copied and replaced
-    rmk_tiny_test_path = os.path.join(copy_path, "conf/dset/rmk_tiny_test.yaml")
+    rmk_tiny_test_path = os.path.join(copy_path, "conf/dset/rmk-train-dset-v1-170424-1.yaml")
     main_conf_path = os.path.join(copy_path, "conf/config.yaml")
+
     train_path = os.path.join(copy_path, "demucs/train.py")
+    wav_path = os.path.join(copy_path, "demucs/wav.py")
+
 
     # Set the destination file paths
-    rmk_tiny_test_dest = os.path.join(demucs2_path, "conf/dset/rmk_tiny_test.yaml")
+    rmk_tiny_test_dest = os.path.join(demucs2_path, "conf/dset/rmk-train-dset-v1-170424-1.yaml")
     main_conf_dest = os.path.join(demucs2_path, "conf/config.yaml")
+
     train_dest = os.path.join(demucs2_path, "demucs/train.py")
+    wav_dest = os.path.join(demucs2_path, "demucs/wav.py")
+
 
     # Create the destination directories if they don't exist
     os.makedirs(os.path.dirname(rmk_tiny_test_dest), exist_ok=True)
     os.makedirs(os.path.dirname(main_conf_dest), exist_ok=True)
+
     os.makedirs(os.path.dirname(train_dest), exist_ok=True)
+    os.makedirs(os.path.dirname(wav_dest), exist_ok=True)
+
 
     # Copy and replace the files
     shutil.copy2(rmk_tiny_test_path, rmk_tiny_test_dest)
     shutil.copy2(main_conf_path, main_conf_dest)
+
     shutil.copy2(train_path, train_dest)
+    shutil.copy2(wav_path, wav_dest)
+
+    shutil.copytree(demucs_code_path, demucs_code_dest, dirs_exist_ok=True)
+
 
     print("Files copied and replaced successfully.")
 

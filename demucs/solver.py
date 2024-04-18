@@ -32,7 +32,10 @@ class Solver(object):
         self.args = args
         self.loaders = loaders
 
+        print(f"LOADERS: {loaders}")
+
         self.model = model
+
         self.optimizer = optimizer
         self.quantizer = states.get_quantizer(self.model, args.quant, self.optimizer)
         self.dmodel = distrib.wrap(model)
@@ -264,22 +267,26 @@ class Solver(object):
             # if div:
             #     logger.warning("Finishing training early because valid loss is too high.")
             #     is_last = True
-            if should_eval or is_last:
-                # Evaluate on the testset
-                logger.info('-' * 70)
-                logger.info('Evaluating on the test set...')
-                # We switch to the best known model for testing
-                if self.args.test.best:
-                    state = self.best_state
-                else:
-                    state = states.copy_state(self.model.state_dict())
-                compute_sdr = self.args.test.sdr and is_last
-                with states.swap_state(self.model, state):
-                    with torch.no_grad():
-                        metrics['test'] = evaluate(self, compute_sdr=compute_sdr)
-                formatted = self._format_test(metrics['test'])
-                logger.info(bold(f"Test Summary | Epoch {epoch + 1} | {_summary(formatted)}"))
-            self.link.push_metrics(metrics)
+
+
+
+            #RMK-COMMENT OUT EVERYTHING!
+            # if should_eval or is_last:
+            #     # Evaluate on the testset
+            #     logger.info('-' * 70)
+            #     logger.info('Evaluating on the test set...')
+            #     # We switch to the best known model for testing
+            #     if self.args.test.best:
+            #         state = self.best_state
+            #     else:
+            #         state = states.copy_state(self.model.state_dict())
+            #     compute_sdr = self.args.test.sdr and is_last
+            #     with states.swap_state(self.model, state):
+            #         with torch.no_grad():
+            #             metrics['test'] = evaluate(self, compute_sdr=compute_sdr)
+            #     formatted = self._format_test(metrics['test'])
+            #     logger.info(bold(f"Test Summary | Epoch {epoch + 1} | {_summary(formatted)}"))
+            # self.link.push_metrics(metrics)
 
             if distrib.rank == 0:
                 # Save model each epoch
@@ -291,6 +298,14 @@ class Solver(object):
     def _run_one_epoch(self, epoch, train=True):
         args = self.args
         data_loader = self.loaders['train'] if train else self.loaders['valid']
+
+        if not train:
+            print("NOT TRAINING EPOCH SO VALIDATION EPOCH NOW")
+        else:
+            print("RUNNING A TRAINING EPOCH")
+
+        print("Data loader length:", len(data_loader))
+
         if distrib.world_size > 1 and train:
             data_loader.sampler.set_epoch(epoch)
 
@@ -302,6 +317,7 @@ class Solver(object):
         logprog = LogProgress(logger, data_loader, total=total,
                               updates=self.args.misc.num_prints, name=name)
         averager = EMA()
+
 
         for idx, sources in enumerate(logprog):
             sources = sources.to(self.device)
@@ -402,4 +418,5 @@ class Solver(object):
         if train:
             for ema in self.emas['epoch']:
                 ema.update()
+
         return distrib.average(losses, idx + 1)

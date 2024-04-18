@@ -11,6 +11,8 @@ import os
 from pathlib import Path
 import sys
 
+
+
 from dora import hydra_main
 import hydra
 from hydra.core.global_hydra import GlobalHydra
@@ -108,11 +110,14 @@ def get_optimizer(model, args):
 
 
 def get_datasets(args):
+    print("GETTING DATASET")
     if args.dset.backend:
         torchaudio.set_audio_backend(args.dset.backend)
     if args.dset.use_musdb:
+        print("MUSDB BABY")
         train_set, valid_set = get_musdb_wav_datasets(args.dset)
     else:
+        print("NO MUSDB")
         train_set, valid_set = [], []
     if args.dset.wav:
         extra_train_set, extra_valid_set = get_wav_datasets(args.dset)
@@ -144,6 +149,10 @@ def get_datasets(args):
                 valid_set = ConcatDataset([valid_set, extra_valid_set])
     if args.dset.valid_samples is not None:
         valid_set = random_subset(valid_set, args.dset.valid_samples)
+
+    print(f"LENGTH OF TRAINING SET IS {len(train_set)}")
+    print(f"LENGTH OF VALIDATION SET IS {len(valid_set)}")
+
     assert len(train_set)
     assert len(valid_set)
     return train_set, valid_set
@@ -188,6 +197,11 @@ def get_solver(args, model_only=False):
             train_set = RepitchedWrapper(train_set, vocals=vocals, **args.augment.repitch)
 
     logger.info("train/valid set size: %d %d", len(train_set), len(valid_set))
+
+    logger.info("batch size is: %d ", args.batch_size)
+
+
+
     train_loader = distrib.loader(
         train_set, batch_size=args.batch_size, shuffle=True,
         num_workers=args.misc.num_workers, drop_last=True)
@@ -200,6 +214,8 @@ def get_solver(args, model_only=False):
             valid_set, batch_size=args.batch_size, shuffle=False,
             num_workers=args.misc.num_workers, drop_last=True)
     loaders = {"train": train_loader, "valid": valid_loader}
+
+    # print("TRAINING LOADER: ",str(train_loader) )
 
     # Construct Solver
     return Solver(loaders, model, optimizer, args)
@@ -222,6 +238,9 @@ def get_solver_from_sig(sig, model_only=False):
 
 @hydra_main(config_path="../conf", config_name="config", version_base="1.1")
 def main(args):
+
+    os.environ["TORCHAUDIO_USE_BACKEND_DISPATCHER"] = "1"
+
     global __file__
     __file__ = hydra.utils.to_absolute_path(__file__)
     for attr in ["musdb", "wav", "metadata"]:
@@ -237,6 +256,9 @@ def main(args):
 
     logger.info("For logs, checkpoints and samples check %s", os.getcwd())
     logger.debug(args)
+
+    print(args)
+
     from dora import get_xp
     logger.debug(get_xp().cfg)
 

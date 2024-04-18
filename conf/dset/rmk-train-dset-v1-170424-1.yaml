@@ -3,15 +3,15 @@ model: htdemucs  # see demucs/train.py for the possibilities, and config for eac
 
 
 dset:
-  wav: '/rmk-tiny-test-dset-2'
+  wav: '/dset_vol'
   samplerate: 48000
   use_musdb: false   # set to false to not use musdb as training data.
   channels: 2
   segment: 11
-  sources: ['kick','snare','toms','cymbals']
+  sources: ['Kick','Snare','Toms','Cymbals']
 
 epochs: 120
-batch_size: 3
+batch_size: 8
 
 dora:
   dir: '/outputs'

@@ -11,25 +11,25 @@ dset:
   musdb:
   musdb_samplerate:
   use_musdb: false   # set to false to not use musdb as training data.
-  wav:  # path to custom wav dataset
+  wav:  '/dset_vol'
   wav2:  # second custom wav dataset
   segment: 11
   shift: 1
-  train_valid: true
-  full_cv: true
-  samplerate: 44100
+  train_valid: false
+  full_cv: false
+  samplerate: 48000
   channels: 2
   normalize: true
-  metadata: ./metadata
-  sources: ['drums', 'bass', 'other', 'vocals']
-  valid_samples: # valid dataset size
-  backend: null   # if provided select torchaudio backend.
+  metadata: /metadata
+  sources: ['Kick','Snare','Toms','Cymbals']
+  valid_samples:
+  backend:  # soundfile # if provided select torchaudio backend.
 
 test:
   save: False
   best: True
   workers: 2
-  every: 20
+  every: 99999999
   split: true
   shifts: 1
   overlap: 0.25
@@ -37,8 +37,8 @@ test:
   metric: 'loss'  # metric used for best model selection on the valid set, can also be nsdr
   nonhq:   # path to non hq MusDB for evaluation
 
-epochs: 360
-batch_size: 64
+epochs: 120
+batch_size: 8
 max_batches:  # limit the number of batches per epoch, useful for debugging
               # or if your dataset is gigantic.
 optim:
@@ -60,15 +60,11 @@ weights: [1., 1., 1., 1.]  # weights over each source for the training/valid los
 augment:
   shift_same: false
   repitch:
-    proba: 0.2
-    max_tempo: 12
+    proba: 0
   remix:
-    proba: 1
-    group_size: 4
+    proba: 0
   scale:
-    proba: 1
-    min: 0.25
-    max: 1.25
+    proba: 0
   flip: true
 
 continue_from:  # continue from other XP, give the XP Dora signature.
@@ -78,7 +74,7 @@ continue_best: true
 continue_opt: false
 
 misc:
-  num_workers: 10
+  num_workers: 5
   num_prints: 4
   show: false
   verbose: false
@@ -89,9 +85,9 @@ ema:
   epoch: []
   batch: []
 
-use_train_segment: true  # to remove
+use_train_segment:  # to remove
 model_segment:  # override the segment parameter for the model, usually 4 times the training segment.
-model: demucs  # see demucs/train.py for the possibilities, and config for each model hereafter.
+model: htdemucs  # see demucs/train.py for the possibilities, and config for each model hereafter.
 demucs:  # see demucs/demucs.py for a detailed description
   # Channels
   channels: 64
@@ -288,7 +284,7 @@ quant:  # quantization hyper params
   group_size: 8
 
 dora:
-  dir: outputs
+  dir: /outputs
   exclude: ["misc.*", "slurm.*", 'test.reval', 'flag', 'dset.backend']
 
 slurm:

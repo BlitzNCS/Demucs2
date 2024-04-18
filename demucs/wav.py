@@ -24,7 +24,7 @@ from torch.nn import functional as F
 from .audio import convert_audio_channels
 from . import distrib
 
-MIXTURE = "mixture"
+MIXTURE = "Mixture"
 EXT = ".wav"
 
 
@@ -187,23 +187,40 @@ class Wavset:
 
 def get_wav_datasets(args, name='wav'):
     """Extract the wav datasets from the XP arguments."""
+
     path = getattr(args, name)
+    print(f"PATH IS {path}")
+
     sig = hashlib.sha1(str(path).encode()).hexdigest()[:8]
+    print(f"SIG IS {str(sig)}")
+
     metadata_file = Path(args.metadata) / ('wav_' + sig + ".json")
+    print(f"METADATA FILE IS AT {str(metadata_file)}")
+
     train_path = Path(path) / "train"
     valid_path = Path(path) / "valid"
+    print(f"TRAIN PATH IS {str(train_path)}")
+    print(f"VALID PATH IS {str(valid_path)}")
+
     if not metadata_file.is_file() and distrib.rank == 0:
         metadata_file.parent.mkdir(exist_ok=True, parents=True)
         train = build_metadata(train_path, args.sources)
         valid = build_metadata(valid_path, args.sources)
         json.dump([train, valid], open(metadata_file, "w"))
+
     if distrib.world_size > 1:
         distributed.barrier()
+
     train, valid = json.load(open(metadata_file))
+
+
+
     if args.full_cv:
         kw_cv = {}
     else:
         kw_cv = {'segment': args.segment, 'shift': args.shift}
+
+    
     train_set = Wavset(train_path, train, args.sources,
                        segment=args.segment, shift=args.shift,
                        samplerate=args.samplerate, channels=args.channels,
@@ -211,6 +228,10 @@ def get_wav_datasets(args, name='wav'):
     valid_set = Wavset(valid_path, valid, [MIXTURE] + list(args.sources),
                        samplerate=args.samplerate, channels=args.channels,
                        normalize=args.normalize, **kw_cv)
+    
+
+    print(f"TRAIN SET: root: {train_set.root}, sources: {train_set.sources}, meta: {train_set.metadata}")
+    print(f"VALID SET: root: {valid_set.root}, sources: {valid_set.sources}, meta: {valid_set.metadata}")
     return train_set, valid_set
 
 
